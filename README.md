@@ -279,6 +279,25 @@ If recipient fields are omitted, the server preserves the current conversation r
 
 ![Draft reply generation showing personalized customer message with ticket context](https://github.com/user-attachments/assets/a4f9eb6c-3204-4744-8aed-8d16d7c7641c)
 
+#### `freescout_create_draft_conversation`
+
+Create a new email conversation containing an unsent draft. The tool does not expose a
+published or sent state.
+
+Parameters:
+
+- `mailboxId` (required): Mailbox ID for the new conversation
+- `subject` (required): Conversation subject
+- `customerEmail` (required): Customer email address
+- `draftText` (required): Draft content; Markdown is converted to FreeScout-safe HTML
+- `customerFirstName`, `customerLastName` (optional): Details used when creating a customer
+- `userId`, `assignTo` (optional): Draft author and conversation assignee IDs
+- `to`, `cc`, `bcc` (optional): Message recipients
+
+The tool reads the new conversation ID from FreeScout's `Resource-ID` response header.
+Verify initial-draft behavior against an isolated mailbox before enabling this tool in a
+production workflow.
+
 ![Draft reply automatically saved to FreeScout](https://github.com/user-attachments/assets/689bd675-cb34-414e-b18f-d50d4424ace6)
 
 #### `freescout_get_ticket_context`

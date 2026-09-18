@@ -20,6 +20,7 @@ type FreeScoutApiPort = Pick<
   FreeScoutAPI,
   | 'addThread'
   | 'createDraftReply'
+  | 'createDraftConversation'
   | 'getConversation'
   | 'getMailboxes'
   | 'parseTicketInput'
@@ -291,7 +292,77 @@ export function buildServer(options: BuildServerOptions = {}): McpServer {
     }
   );
 
-  // Tool 6: Get Ticket Context
+  // Tool 6: Create New Conversation with Draft
+  server.registerTool(
+    'freescout_create_draft_conversation',
+    {
+      title: 'Create New Draft Conversation',
+      description:
+        'Create a new email conversation containing an unsent draft. This tool never publishes or sends the message.',
+      inputSchema: z.object({
+        mailboxId: z.number().int().positive().describe('Mailbox ID for the new conversation'),
+        subject: z.string().trim().min(1).describe('Conversation subject'),
+        customerEmail: z.string().email().describe('Customer email address'),
+        draftText: z.string().trim().min(1).describe('Unsent draft content'),
+        customerFirstName: z.string().trim().min(1).optional(),
+        customerLastName: z.string().trim().min(1).optional(),
+        userId: z
+          .number()
+          .int()
+          .positive()
+          .optional()
+          .describe('User ID creating the draft (defaults to env setting)'),
+        assignTo: z
+          .number()
+          .int()
+          .positive()
+          .optional()
+          .describe('User ID to assign the ticket to'),
+        to: z.array(z.string().email()).optional(),
+        cc: z.array(z.string().email()).optional(),
+        bcc: z.array(z.string().email()).optional(),
+      }),
+    },
+    async ({
+      mailboxId,
+      subject,
+      customerEmail,
+      draftText,
+      customerFirstName,
+      customerLastName,
+      userId,
+      assignTo,
+      to,
+      cc,
+      bcc,
+    }) => {
+      const result = await api.createDraftConversation({
+        mailboxId,
+        subject,
+        customerEmail,
+        draftText,
+        customerFirstName,
+        customerLastName,
+        userId: userId ?? defaultUserId,
+        assignTo,
+        to,
+        cc,
+        bcc,
+      });
+      const output = {
+        success: true,
+        ...result,
+        message: `New FreeScout conversation #${result.conversationId} created with an unsent draft. Nothing was sent.`,
+      };
+
+      return {
+        content: [{ type: 'text', text: output.message }],
+        structuredContent: output,
+      };
+    }
+  );
+
+  // Tool 7: Get Ticket Context
   server.registerTool(
     'freescout_get_ticket_context',
     {
@@ -352,7 +423,7 @@ export function buildServer(options: BuildServerOptions = {}): McpServer {
     }
   );
 
-  // Tool 7: Search Tickets
+  // Tool 8: Search Tickets
   server.registerTool(
     'freescout_search_tickets',
     {
@@ -423,7 +494,7 @@ export function buildServer(options: BuildServerOptions = {}): McpServer {
     }
   );
 
-  // Tool 8: Get Mailboxes
+  // Tool 9: Get Mailboxes
   server.registerTool(
     'freescout_get_mailboxes',
     {

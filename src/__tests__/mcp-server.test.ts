@@ -36,6 +36,12 @@ function createApi() {
     addThread: vi.fn().mockResolvedValue({ id: 77 }),
     updateConversation: vi.fn().mockResolvedValue(undefined),
     createDraftReply: vi.fn().mockResolvedValue({ id: 88 }),
+    createDraftConversation: vi.fn().mockResolvedValue({
+      conversationId: 999,
+      mailboxId: 4,
+      subject: 'A new request',
+      state: 'draft',
+    }),
     searchConversations: vi.fn().mockResolvedValue({
       _embedded: { conversations: [conversation] },
       page: { size: 50, totalElements: 1, number: 1, totalPages: 1 },
@@ -75,15 +81,15 @@ describe('buildServer', () => {
     vi.unstubAllEnvs();
   });
 
-  it('registers the eight tools without declared output schemas', () => {
+  it('registers the nine tools without declared output schemas', () => {
     const server = buildServer({ api: createApi() as never });
     const tools = registeredTools(server);
 
-    expect(Object.keys(tools)).toHaveLength(8);
+    expect(Object.keys(tools)).toHaveLength(9);
     expect(Object.values(tools).every((tool) => tool.outputSchema === undefined)).toBe(true);
   });
 
-  it('preserves the eight tool behaviors and structured content where it is stable', async () => {
+  it('preserves tool behaviors and structured content where it is stable', async () => {
     const api = createApi();
     const tools = registeredTools(buildServer({ api: api as never, defaultUserId: 7 }));
 
@@ -103,6 +109,12 @@ describe('buildServer', () => {
       ticket: '123',
       replyText: 'Thanks for the report.',
     });
+    const newDraft = await execute(tools, 'freescout_create_draft_conversation', {
+      mailboxId: 4,
+      subject: 'A new request',
+      customerEmail: 'customer@example.com',
+      draftText: 'Hello there.',
+    });
     const context = await execute(tools, 'freescout_get_ticket_context', { ticket: '123' });
     const search = await execute(tools, 'freescout_search_tickets', { status: 'active' });
     const mailboxes = await execute(tools, 'freescout_get_mailboxes', {});
@@ -112,6 +124,11 @@ describe('buildServer', () => {
     expect(note.structuredContent).toMatchObject({ success: true, ticketId: '123' });
     expect(update.structuredContent).toMatchObject({ success: true, ticketId: '123' });
     expect(draft.structuredContent).toMatchObject({ success: true, draftId: 88 });
+    expect(newDraft.structuredContent).toMatchObject({
+      success: true,
+      conversationId: 999,
+      state: 'draft',
+    });
     expect(context.structuredContent).toBeUndefined();
     expect(search.structuredContent).toBeUndefined();
     // totalCount must read the FreeScout `page.totalElements` key, not a
@@ -131,6 +148,19 @@ describe('buildServer', () => {
       7,
       conversation.to ? { to: conversation.to, cc: conversation.cc, bcc: conversation.bcc } : {}
     );
+    expect(api.createDraftConversation).toHaveBeenCalledWith({
+      mailboxId: 4,
+      subject: 'A new request',
+      customerEmail: 'customer@example.com',
+      draftText: 'Hello there.',
+      customerFirstName: undefined,
+      customerLastName: undefined,
+      userId: 7,
+      assignTo: undefined,
+      to: undefined,
+      cc: undefined,
+      bcc: undefined,
+    });
   });
 });
 

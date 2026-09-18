@@ -4,6 +4,14 @@
 
 `mcp-freescout` is an MCP (Model Context Protocol) server for FreeScout ticket management and workflow automation.
 
+## Current feature branch work
+
+- The working tree adds `freescout_create_draft_conversation` for creating a new email conversation whose initial agent message has `state: "draft"`.
+- Conversation type and draft state remain fixed inside the implementation; do not add a send/publish input.
+- FreeScout returns the created conversation ID in the `Resource-ID` response header, so preserve header access and empty `201 Created` handling.
+- Do not run a live create-conversation test against a real customer. Use an isolated mailbox and owned recipient, and verify SMTP, notifications, auto-replies, workflows, and webhooks.
+- The corresponding Codex skill is `freescout-new-draft`; existing-ticket replies remain the responsibility of `freescout-reply`.
+
 ## Common commands
 
 ```bash
@@ -30,6 +38,7 @@ npm run format         # Format source files with Prettier
 - Keep API access behind a focused client module and test it with mocked
   responses.
 - Before opening a change, run `npm run lint`, `npm run build`, and `npm test`.
+- Current local verification: lint and build pass; focused API/MCP tests pass. The unchanged CLI symlink entrypoint test exits before returning initialization in this environment and must be baselined or resolved before claiming the complete suite passes.
 
 ## Layout
 

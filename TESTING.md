@@ -13,7 +13,7 @@ Based on research and the MCP community standards:
 ### Implemented
 
 - **MCP server factory and lifecycle** (`src/__tests__/mcp-server.test.ts`, `src/__tests__/stdio-lifecycle.test.ts`)
-  - Eight registered tools with Zod 4 input schemas
+  - Nine registered tools with Zod 4 input schemas
   - 2025 legacy and 2026 stdio factory coverage
   - Parent-process watchdog and SIGINT/SIGTERM shutdown behavior
 

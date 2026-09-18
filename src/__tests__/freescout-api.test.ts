@@ -526,6 +526,84 @@ describe('FreeScoutAPI', () => {
     });
   });
 
+  describe('createDraftConversation', () => {
+    it('creates a conversation with one unsent draft and reads Resource-ID', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        status: 201,
+        headers: new Headers({ 'Resource-ID': '321' }),
+      });
+
+      const result = await api.createDraftConversation({
+        mailboxId: 4,
+        subject: 'Welcome aboard',
+        customerEmail: 'customer@example.com',
+        customerFirstName: 'Casey',
+        draftText: '**Hello** from the team.',
+        userId: 7,
+        assignTo: 9,
+        to: ['customer@example.com'],
+        cc: ['team@example.com'],
+      });
+
+      expect(result).toEqual({
+        conversationId: 321,
+        mailboxId: 4,
+        subject: 'Welcome aboard',
+        state: 'draft',
+      });
+      expect(mockFetch).toHaveBeenCalledWith(
+        `${mockBaseUrl}/api/conversations`,
+        expect.objectContaining({
+          method: 'POST',
+          headers: expect.objectContaining({
+            'X-FreeScout-API-Key': mockApiKey,
+            'Content-Type': 'application/json',
+          }),
+        })
+      );
+
+      const callBody = JSON.parse(mockFetch.mock.calls[0][1]?.body as string);
+      expect(callBody).toEqual({
+        type: 'email',
+        mailboxId: 4,
+        subject: 'Welcome aboard',
+        customer: {
+          email: 'customer@example.com',
+          firstName: 'Casey',
+        },
+        threads: [
+          {
+            type: 'message',
+            text: '<p><strong>Hello</strong> from the team.</p>',
+            user: 7,
+            state: 'draft',
+            to: ['customer@example.com'],
+            cc: ['team@example.com'],
+          },
+        ],
+        status: 'active',
+        assignTo: 9,
+      });
+    });
+
+    it.each([null, 'not-a-number'])('rejects an invalid Resource-ID value: %s', async (value) => {
+      const headers = new Headers();
+      if (value !== null) headers.set('Resource-ID', value);
+      mockFetch.mockResolvedValueOnce({ ok: true, status: 201, headers });
+
+      await expect(
+        api.createDraftConversation({
+          mailboxId: 4,
+          subject: 'Test',
+          customerEmail: 'customer@example.com',
+          draftText: 'Draft',
+          userId: 7,
+        })
+      ).rejects.toThrow('did not include a valid Resource-ID');
+    });
+  });
+
   describe('Schema Validation', () => {
     it('should validate conversation schema with all required fields', () => {
       const validConversation = {

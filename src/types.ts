@@ -98,18 +98,12 @@ export const SearchFiltersSchema = z.object({
     .string()
     .optional()
     .describe('Alias for `subject`: matches the conversation subject only, not message bodies.'),
-  subject: z
-    .string()
-    .optional()
-    .describe('Filter by conversation subject (partial match).'),
+  subject: z.string().optional().describe('Filter by conversation subject (partial match).'),
   customerEmail: z
     .string()
     .optional()
     .describe('Filter by the customer email address on the conversation.'),
-  number: z
-    .number()
-    .optional()
-    .describe('Look up a single conversation by its ticket number.'),
+  number: z.number().optional().describe('Look up a single conversation by its ticket number.'),
   assignee: z.union([z.literal('unassigned'), z.literal('any'), z.number()]).optional(),
   updatedSince: z.string().optional(), // ISO date or relative like "7d", "24h"
   createdSince: z.string().optional(),
@@ -133,6 +127,24 @@ export interface FreeScoutRecipients {
   to?: string[];
   cc?: string[];
   bcc?: string[];
+}
+
+export interface CreateDraftConversationInput extends FreeScoutRecipients {
+  mailboxId: number;
+  subject: string;
+  customerEmail: string;
+  draftText: string;
+  userId: number;
+  customerFirstName?: string;
+  customerLastName?: string;
+  assignTo?: number;
+}
+
+export interface CreateDraftConversationResult {
+  conversationId: number;
+  mailboxId: number;
+  subject: string;
+  state: 'draft';
 }
 
 // Legacy interfaces (deprecated, use Zod schemas above)

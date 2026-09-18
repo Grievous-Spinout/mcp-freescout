@@ -1,4 +1,6 @@
 import type {
+  CreateDraftConversationInput,
+  CreateDraftConversationResult,
   FreeScoutConversation,
   FreeScoutApiResponse,
   FreeScoutRecipients,
@@ -280,7 +282,11 @@ export class FreeScoutAPI {
     return this.markdownToHtml(text);
   }
 
-  private async request<T>(path: string, method: string = 'GET', body?: unknown): Promise<T> {
+  private async performRequest(
+    path: string,
+    method: string = 'GET',
+    body?: unknown
+  ): Promise<Response> {
     return this.retryWithBackoff(async () => {
       const url = `${this.baseUrl}/api${path}`;
 
@@ -320,13 +326,7 @@ export class FreeScoutAPI {
           throw new Error(`FreeScout API error: ${response.status} - ${errorText}`);
         }
 
-        // FreeScout returns 204 No Content for successful update operations.
-        // Do not attempt JSON parsing when the response intentionally has no body.
-        if (response.status === 204) {
-          return undefined as T;
-        }
-
-        return response.json() as Promise<T>;
+        return response;
       } catch (error: unknown) {
         clearTimeout(timeoutId);
 
@@ -339,6 +339,14 @@ export class FreeScoutAPI {
         throw error;
       }
     });
+  }
+  private async request<T>(path: string, method: string = 'GET', body?: unknown): Promise<T> {
+    const response = await this.performRequest(path, method, body);
+    if (response.status === 204) {
+      return undefined as T;
+    }
+
+    return response.json() as Promise<T>;
   }
 
   async getConversation(
@@ -401,6 +409,64 @@ export class FreeScoutAPI {
     recipients?: FreeScoutRecipients
   ): Promise<FreeScoutThread> {
     return this.addThread(ticketId, 'message', text, userId, 'draft', recipients);
+  }
+  async createDraftConversation(
+    input: CreateDraftConversationInput
+  ): Promise<CreateDraftConversationResult> {
+    const customer: { email: string; firstName?: string; lastName?: string } = {
+      email: input.customerEmail,
+    };
+    if (input.customerFirstName) customer.firstName = input.customerFirstName;
+    if (input.customerLastName) customer.lastName = input.customerLastName;
+
+    const thread: {
+      type: 'message';
+      text: string;
+      user: number;
+      state: 'draft';
+      to?: string[];
+      cc?: string[];
+      bcc?: string[];
+    } = {
+      type: 'message',
+      text: this.formatForFreeScoutEditor(input.draftText),
+      user: input.userId,
+      state: 'draft',
+    };
+    if (input.to !== undefined) thread.to = input.to;
+    if (input.cc !== undefined) thread.cc = input.cc;
+    if (input.bcc !== undefined) thread.bcc = input.bcc;
+
+    const body: {
+      type: 'email';
+      mailboxId: number;
+      subject: string;
+      customer: typeof customer;
+      threads: [typeof thread];
+      status: 'active';
+      assignTo?: number;
+    } = {
+      type: 'email',
+      mailboxId: input.mailboxId,
+      subject: input.subject,
+      customer,
+      threads: [thread],
+      status: 'active',
+    };
+    if (input.assignTo !== undefined) body.assignTo = input.assignTo;
+
+    const response = await this.performRequest('/conversations', 'POST', body);
+    const resourceId = response.headers.get('Resource-ID');
+    if (!resourceId || !/^\d+$/.test(resourceId)) {
+      throw new Error('FreeScout create conversation response did not include a valid Resource-ID');
+    }
+
+    return {
+      conversationId: Number.parseInt(resourceId, 10),
+      mailboxId: input.mailboxId,
+      subject: input.subject,
+      state: 'draft',
+    };
   }
 
   async updateConversation(
